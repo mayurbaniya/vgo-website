@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+/*
+  VGO design tokens.
+
+  Direction: premium editorial. Dark chrome (header, hero, footer, CTA bands)
+  frames a bright, dense catalog surface — the catalog is the product, the dark
+  ground is the frame around it.
+
+  Two ideas carry the identity and both come from the subject rather than from
+  decoration:
+
+  1. The instrument cluster — spec readouts are set the way a bike's console
+     reads out: a tracked-out micro label above a tabular figure, cells split by
+     hairlines. It appears on cards, in the hero and on the vehicle page, so the
+     same device does the same job everywhere (.cluster below).
+  2. The registration plate — Nagpur is MH-31, which every rider here reads
+     instantly. Used exactly once, as the hero's location eyebrow (.plate-chip).
+*/
+
+@theme {
+  /*
+    Indigo is seeded from the app's #4F46E5 (also the backend's email header
+    colour) so the site and the app read as one product. brand-glow is the
+    lifted tint used on dark ground, where 600 goes muddy.
+  */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-glow: #8f8dff;
+
+  /* Dark ground — near-black carrying a blue-violet undertone, not pure grey. */
+  --color-ground: #0a0c12;
+  --color-ground-soft: #151926;
+  --color-ground-line: #262b3a;
+  --color-ground-ink: #f2f3f7;
+  --color-ground-muted: #9aa1b4;
+
+  /* Light catalog surface. */
+  --color-ink: #14161f;
+  --color-ink-muted: #565d6e;
+  --color-ink-subtle: #7b8294;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f5f6f9;
+  --color-hairline: #e4e6ec;
+
+  /*
+    Two semantic accents, each with exactly one job, so colour always means
+    something: signal = editorial marks and active state (Nagpur is the Orange
+    City, so the warm tone is local rather than arbitrary); ev = the electric
+    fact, because green reads as "EV" without a legend.
+  */
+  --color-signal: #ff6a2b;
+  --color-signal-soft: #fff1e9;
+  --color-ev: #0e9f6e;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif, sans-serif;
+
+  /* Tighter than the Tailwind default — round corners read soft, this is a
+     technical catalog and wants an engineered edge. */
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-chip: 6px;
+}
+
+html {
+  scroll-behavior: smooth;
+  /*
+    Declared, not inherited. Without this, Chrome's "auto dark mode for web
+    contents" — on by default for a lot of Android users running a dark system
+    theme — force-darkens the catalog and inverts the dark chrome this design
+    is built around. The page states its scheme so the browser leaves it alone.
+  */
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display type is set tight and dark — the size does the work, not the weight. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.032em;
+  line-height: 0.98;
+}
+
+.display-sm {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/*
+  Micro label. The counterpart to every figure in the interface: small, tracked
+  out, never bold enough to compete with the number it describes.
+*/
+.micro {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Figures line up column-to-column across cards; prices must not jitter. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/*
+  The instrument cluster. Hairline-split cells, label under value, equal widths
+  — the readout device this design is built around.
+*/
+.cluster {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.cluster > * + * {
+  border-left: 1px solid var(--color-hairline);
+}
+
+.cluster-dark > * + * {
+  border-left-color: var(--color-ground-line);
+}
+
+/*
+  Image stage. Catalog photography arrives from admins in every possible
+  lighting and crop, so every image sits on the same neutral plate with the same
+  inset — that consistency is what makes a grid read as a set.
+*/
+.plate {
+  background:
+    radial-gradient(120% 80% at 50% 12%, #ffffff 0%, #f3f4f8 55%, #e9ebf1 100%);
+}
+
+.plate-dark {
+  background:
+    radial-gradient(120% 80% at 50% 10%, #1d2231 0%, #141828 55%, #0d1018 100%);
+}
+
+/*
+  Registration plate chip — white ground, black text, condensed. India issues
+  private plates in exactly this scheme, which is why it reads as "here" and not
+  as a generic location pill.
+*/
+.plate-chip {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: #f4f4f0;
+  color: #0a0c12;
+  border: 1px solid #c9cbd2;
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.18);
+}
+
+/* Card titles need a hard 2-line stop so a long model name can't shift a grid. */
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Keyboard users get the same affordances as pointer users, on both grounds. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
