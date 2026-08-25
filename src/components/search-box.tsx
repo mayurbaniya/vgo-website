@@ -14,10 +14,18 @@ export function SearchBox({
   size = 'compact',
   autoFocus = false,
   placeholder = 'Search a model — Duke, Activa, Classic 350…',
+  label = 'Search vehicles',
+  submitLabel = 'Search',
 }: {
   size?: 'compact' | 'hero'
   autoFocus?: boolean
+  // Copy is passed in rather than read from the dictionary here. This is a
+  // client component used both inside the header (which has already resolved
+  // the reader's language) and on pages that have not — defaulting to English
+  // keeps those working untouched until page copy is translated too.
   placeholder?: string
+  label?: string
+  submitLabel?: string
 }) {
   const router = useRouter()
   const [value, setValue] = useState('')
@@ -49,7 +57,7 @@ export function SearchBox({
         }
       />
       <label className="sr-only" htmlFor={hero ? 'search-hero' : 'search-header'}>
-        Search vehicles
+        {label}
       </label>
       <input
         id={hero ? 'search-hero' : 'search-header'}
@@ -70,7 +78,7 @@ export function SearchBox({
           type="submit"
           className="shrink-0 rounded-[6px] bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-500"
         >
-          Search
+          {submitLabel}
         </button>
       )}
     </form>

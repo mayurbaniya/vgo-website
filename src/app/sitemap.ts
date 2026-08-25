@@ -1,8 +1,19 @@
 import type { MetadataRoute } from 'next'
-import { getAllVehicles, getBrands } from '@/lib/api'
-import { brandSlug, vehicleHref } from '@/lib/format'
-import { SITE_URL } from '@/lib/site'
+import { getBrands } from '@/lib/api'
+import { getCatalogSnapshot } from '@/lib/catalog'
+import { BUDGET_BUCKETS, CC_BUCKETS } from '@/lib/filters'
+import { brandSlug } from '@/lib/format'
+import { BODY_TYPES, SITE_URL } from '@/lib/site'
 
+/**
+ * Static destinations.
+ *
+ * /search, /used-bikes and /showrooms are deliberately absent: the first is
+ * noindex by design (thin, infinite, competes with the listings that are meant
+ * to rank) and the other two are placeholders for sections that do not exist
+ * yet. Submitting a URL we have told robots not to index is a contradiction a
+ * crawler will resolve against us.
+ */
 const STATIC_PATHS = [
   '',
   '/bikes',
@@ -11,16 +22,22 @@ const STATIC_PATHS = [
   '/brands',
   '/offers',
   '/news',
+  '/compare',
+  '/emi-calculator',
+  '/on-road-price',
   '/privacy-policy',
 ]
 
 /**
- * Every vehicle and brand URL, so crawlers find detail pages without having to
- * walk the paginated listings.
+ * Every URL worth crawling.
  *
- * The catalog is small enough (one city, two-wheelers only) to fit the 50,000
- * URL / 50 MB single-file sitemap limit comfortably. If it ever outgrows that,
- * switch to generateSitemaps() and shard by brand.
+ * Three kinds: the fixed pages above, one page per vehicle and brand, and the
+ * facet hubs — /bikes?budget=100k-150k and friends. The facets are here because
+ * they are what people actually search ("bikes under 1 lakh", "150cc bikes"),
+ * they render server-side with real content, and nothing else on the site links
+ * to all of them from one place. They are also finite and small: six budget
+ * bands plus six displacement bands plus five body styles, not the combinatorial
+ * explosion an unbounded filter set would produce.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = STATIC_PATHS.map((path) => ({
@@ -29,12 +46,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: path === '' ? 1 : 0.7,
   }))
 
-  const [brands, vehiclePage] = await Promise.all([
-    getBrands(),
-    // One large page rather than walking every page: the sitemap is rebuilt on
-    // its cache lifetime, and a loop here would hammer the 2 GB backend.
-    getAllVehicles(0, 1000),
-  ])
+  for (const bucket of BUDGET_BUCKETS) {
+    entries.push({
+      url: `${SITE_URL}/bikes?budget=${bucket.key}`,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    })
+  }
+
+  for (const bucket of CC_BUCKETS) {
+    entries.push({
+      url: `${SITE_URL}/bikes?cc=${bucket.key}`,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    })
+  }
+
+  for (const type of BODY_TYPES) {
+    entries.push({
+      url: `${SITE_URL}/type/${type.slug}`,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    })
+  }
+
+  const [brands, snapshot] = await Promise.all([getBrands(), getCatalogSnapshot()])
 
   for (const brand of brands) {
     if (brand.id == null || !brand.name) continue
@@ -45,10 +81,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   }
 
-  for (const vehicle of vehiclePage?.content ?? []) {
-    if (vehicle.id == null) continue
+  for (const vehicle of snapshot.vehicles) {
     entries.push({
-      url: `${SITE_URL}${vehicleHref(vehicle)}`,
+      url: `${SITE_URL}${vehicle.href}`,
       changeFrequency: 'weekly',
       priority: 0.8,
     })

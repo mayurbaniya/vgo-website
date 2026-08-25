@@ -1,14 +1,8 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { Suspense } from 'react'
-import { searchVehicles } from '@/lib/api'
-import {
-  EmptyState,
-  GridSkeleton,
-  VehicleGrid,
-} from '@/components/vehicle-grid'
+import { CatalogResults } from '@/components/catalog-results'
 import { SearchBox } from '@/components/search-box'
-import { PageHeader } from '@/components/vehicle-listing'
+import { ListingSkeleton, PageHeader } from '@/components/vehicle-listing'
 
 /**
  * Results pages are deliberately kept out of the index: they are thin,
@@ -24,61 +18,31 @@ export default function SearchPage(props: PageProps<'/search'>) {
     <>
       <PageHeader
         title="Search"
-        description="Find a model by name — Duke, Activa, Classic 350, Rizta."
+        description="Find a model by name — Duke, Activa, Classic 350, Rizta — then narrow it down."
       >
-        <div className="mt-6 max-w-xl rounded-control bg-ground p-1.5">
+        <div className="mt-6 max-w-xl">
           <SearchBox size="hero" autoFocus placeholder="Search a model…" />
         </div>
       </PageHeader>
 
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        {/* searchParams is runtime data, so the read happens inside the
-            boundary — that keeps the header in the prerendered static shell. */}
-        <Suspense fallback={<GridSkeleton count={3} />}>
-          <Results searchParams={props.searchParams} />
+      <div className="shell py-8">
+        <Suspense fallback={<ListingSkeleton />}>
+          {/*
+            Results come from the catalog index rather than from the backend's
+            /vehicles/search endpoint. That endpoint matches names and returns a
+            flat list — which is fine until you want to then filter those
+            matches by budget or brand, which is exactly what someone does after
+            searching "pulsar" and getting six of them. One source for the rows
+            means the rail, the counts and the sort all work here identically to
+            every other listing.
+          */}
+          <CatalogResults
+            searchParams={props.searchParams}
+            basePath="/search"
+            emptyMessage="Type a model name above to search the catalog."
+          />
         </Suspense>
       </div>
-    </>
-  )
-}
-
-async function Results({
-  searchParams,
-}: Pick<PageProps<'/search'>, 'searchParams'>) {
-  const { q } = await searchParams
-  const query = (Array.isArray(q) ? q[0] : q)?.trim() ?? ''
-
-  if (!query) {
-    return (
-      <EmptyState
-        message="Type a model name above to search the catalog."
-        action={
-          <Link
-            href="/bikes"
-            className="text-sm font-semibold text-brand-700 hover:underline"
-          >
-            Or browse all bikes →
-          </Link>
-        }
-      />
-    )
-  }
-
-  const vehicles = await searchVehicles(query)
-
-  return (
-    <>
-      <p className="mb-6 text-sm text-ink-muted">
-        {vehicles.length === 0
-          ? 'No matches for '
-          : `${vehicles.length} ${vehicles.length === 1 ? 'match' : 'matches'} for `}
-        <span className="font-semibold text-ink">“{query}”</span>
-      </p>
-
-      <VehicleGrid
-        vehicles={vehicles}
-        emptyMessage="No model matches that name. Try a shorter search — “duke” rather than “KTM Duke 390 BS6”."
-      />
     </>
   )
 }

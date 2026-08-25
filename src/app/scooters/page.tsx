@@ -1,18 +1,12 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { getAllScooters } from '@/lib/api'
-import {
-  ListingSkeleton,
-  PAGE_SIZE,
-  PageHeader,
-  VehicleListing,
-  parsePage,
-} from '@/components/vehicle-listing'
-import { PRIMARY_CITY } from '@/lib/site'
+import { CatalogResults } from '@/components/catalog-results'
+import { ListingSkeleton, PageHeader } from '@/components/vehicle-listing'
+import { MARKET } from '@/lib/site'
 
 export const metadata: Metadata = {
-  title: `Scooters in ${PRIMARY_CITY} — Prices, Mileage and Specifications`,
-  description: `Browse every scooter available in ${PRIMARY_CITY}. Compare on-road prices, engine capacity, mileage and full specifications.`,
+  title: `Scooters in ${MARKET} — Prices, Mileage and Specifications`,
+  description: `Browse every scooter available in ${MARKET}, petrol and electric. Filter by budget, brand and displacement, and compare prices, mileage and specifications.`,
   alternates: { canonical: '/scooters' },
 }
 
@@ -20,29 +14,23 @@ export default function ScootersPage(props: PageProps<'/scooters'>) {
   return (
     <>
       <PageHeader
-        title={`Scooters in ${PRIMARY_CITY}`}
+        eyebrow="New scooters"
+        title={`Scooters in ${MARKET}`}
         description="Petrol and electric scooters, with prices, specs and claimed mileage."
       />
-      <div className="mx-auto max-w-6xl px-4 py-10">
+      <div className="shell py-8">
         <Suspense fallback={<ListingSkeleton />}>
-          <Results searchParams={props.searchParams} />
+          <CatalogResults
+            searchParams={props.searchParams}
+            basePath="/scooters"
+            restrict={(entry) => entry.bodySlug === 'scooter'}
+            // Every row here is a scooter, so the body-style group would offer
+            // five options that return nothing and one that changes nothing.
+            hide={['body']}
+            emptyMessage="No scooters are listed right now."
+          />
         </Suspense>
       </div>
     </>
-  )
-}
-
-async function Results({
-  searchParams,
-}: Pick<PageProps<'/scooters'>, 'searchParams'>) {
-  const { page } = await searchParams
-  const result = await getAllScooters(parsePage(page), PAGE_SIZE)
-
-  return (
-    <VehicleListing
-      page={result}
-      basePath="/scooters"
-      emptyMessage="No scooters are listed right now."
-    />
   )
 }

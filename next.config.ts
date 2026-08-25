@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**.cloudfront.net' },
       { protocol: 'https', hostname: '**.amazonaws.com' },
+      // The dev catalog fixture (DevDataSeeder on the backend) points image
+      // columns at picsum.photos so a freshly seeded database renders real
+      // pictures instead of "Photo coming soon" everywhere. Development only:
+      // production images come from CloudFront, and allowing an arbitrary
+      // third-party host to be optimised and served under our own domain is
+      // not something to ship.
+      ...(process.env.NODE_ENV === 'development'
+        ? [{ protocol: 'https' as const, hostname: 'picsum.photos' }]
+        : []),
     ],
   },
 }

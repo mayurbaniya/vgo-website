@@ -1,66 +1,145 @@
 import Link from 'next/link'
-import { cacheLife } from 'next/cache'
-import { BODY_TYPES, NAV_LINKS, PLAY_STORE_URL, PRIMARY_CITY } from '@/lib/site'
-import { Wordmark } from './site-header'
+import { getBrands } from '@/lib/api'
+import { getToday } from '@/lib/catalog'
+import { BUDGET_BUCKETS, CC_BUCKETS } from '@/lib/filters'
+import { brandSlug } from '@/lib/format'
+import { BODY_TYPES, NAV_LINKS } from '@/lib/site'
+import { GetAppButton } from './get-app-button'
+import { Wordmark } from './wordmark'
+import { fill, getDictionary, type LanguageCode } from '@/lib/i18n/dictionaries'
 
 /**
- * Cached rather than plain, because of the copyright year.
+ * The footer.
  *
- * Under Cache Components, reading the current clock during prerender is an
- * error — the value would be frozen into the static shell with no lifetime.
- * `use cache` + a day-long life is the sanctioned fix: everyone sees the same
- * year, and it refreshes on its own instead of going stale until the next
- * deploy.
+ * Deliberately dense. On a catalog site the footer is not decoration — it is
+ * the index: a crawler that lands on any page finds every budget band, every
+ * displacement band, every body style and every brand from here, and so does a
+ * reader who scrolled to the bottom without finding what they wanted. Twelve
+ * links do not do that job; the portals run sixty and they are right to.
+ *
+ * No longer a `use cache` component. It was cached for one reason — the
+ * copyright year, which cannot be read from the clock during prerender — and
+ * that now comes from `getToday()`, which is itself cached with a day-long
+ * life. Dropping the boundary is what lets this read the brand list: caching a
+ * component that fetches would also cache the empty list `getBrands` degrades
+ * to when the backend is down, and pin an empty brands column for a day after
+ * it recovered.
  */
-export async function SiteFooter() {
-  'use cache'
-  cacheLife('days')
+export async function SiteFooter({ language }: { language: LanguageCode }) {
+  const dict = getDictionary(language)
 
-  const year = new Date().getFullYear()
+  const [today, brands] = await Promise.all([getToday(), getBrands()])
+  const year = new Date(today).getUTCFullYear()
+
+  const popularBrands = brands
+    .filter((brand) => brand.id != null && brand.name)
+    .sort(
+      (a, b) => (b.rating ?? 0) - (a.rating ?? 0) || a.name!.localeCompare(b.name!),
+    )
+    .slice(0, 8)
 
   return (
     <footer className="mt-20 bg-ground text-ground-muted">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <Wordmark className="text-2xl" />
-          <p className="mt-4 max-w-xs text-sm leading-relaxed">
-            Prices, specifications and dealer offers for every bike and scooter
-            sold in {PRIMARY_CITY}.
-          </p>
-          <a
-            href={PLAY_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 inline-block rounded-control bg-white/10 px-4 py-2 text-sm font-semibold text-ground-ink transition-colors hover:bg-white/16"
-          >
-            Get the app
-          </a>
+      <div className="shell-bleed py-14">
+        <div className="grid gap-10 lg:grid-cols-[18rem_1fr] lg:gap-16">
+          <div>
+            <Wordmark className="text-2xl" />
+            <p className="mt-4 max-w-xs text-sm leading-relaxed">
+              {dict.footer.tagline}
+            </p>
+            <GetAppButton tone="light" label={dict.header.getApp} className="mt-5" />
+          </div>
+
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            <FooterColumn
+              title={dict.footer.browse}
+              links={[
+                ...NAV_LINKS.map((link) => ({
+                  href: link.href,
+                  label: dict.nav[link.key],
+                })),
+              ]}
+            />
+
+            <FooterColumn
+              title={dict.footer.byBudget}
+              links={BUDGET_BUCKETS.map((bucket) => ({
+                href: `/bikes?budget=${bucket.key}`,
+                label: bucket.label,
+              }))}
+            />
+
+            <FooterColumn
+              title={dict.footer.byEngine}
+              links={CC_BUCKETS.map((bucket) => ({
+                href: `/bikes?cc=${bucket.key}`,
+                label: bucket.label,
+              }))}
+            />
+
+            <div className="space-y-10">
+              <FooterColumn
+                title={dict.footer.byBodyType}
+                links={BODY_TYPES.map((type) => ({
+                  href: `/type/${type.slug}`,
+                  label: dict.bodyTypes[type.key],
+                }))}
+              />
+
+              <FooterColumn
+                title={dict.tools.label}
+                links={[
+                  { href: '/compare', label: dict.tools.compare },
+                  { href: '/emi-calculator', label: dict.tools.emi },
+                  { href: '/on-road-price', label: dict.tools.onRoad },
+                  { href: '/used-bikes', label: dict.tools.usedBikes },
+                  { href: '/showrooms', label: dict.tools.showrooms },
+                ]}
+              />
+            </div>
+          </div>
         </div>
 
-        <FooterColumn title="Browse" links={NAV_LINKS.map((l) => ({ ...l }))} />
+        {popularBrands.length > 0 && (
+          <div className="mt-12 border-t border-white/8 pt-8">
+            <h2 className="micro text-white/40">{dict.footer.popularBrands}</h2>
+            <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+              {popularBrands.map((brand) => (
+                <li key={brand.id}>
+                  <Link
+                    href={`/brands/${brandSlug(brand.name!, brand.id!)}`}
+                    className="text-sm transition-colors hover:text-ground-ink"
+                  >
+                    {brand.name}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link
+                  href="/brands"
+                  className="text-sm font-semibold text-ground-ink hover:underline"
+                >
+                  {dict.footer.allBrands} →
+                </Link>
+              </li>
+            </ul>
+          </div>
+        )}
 
-        <FooterColumn
-          title="By body type"
-          links={BODY_TYPES.map((type) => ({
-            href: `/type/${type.slug}`,
-            label: type.label,
-          }))}
-        />
-
-        <FooterColumn
-          title="Company"
-          links={[
-            { href: '/privacy-policy', label: 'Privacy policy' },
-            { href: '/brands', label: 'All brands' },
-            { href: '/news', label: 'News' },
-          ]}
-        />
+        <p className="mt-10 max-w-3xl text-xs leading-relaxed text-white/35">
+          {dict.footer.disclaimer}
+        </p>
       </div>
 
       <div className="border-t border-white/8">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs">
-          <p>© {year} VGO Pvt Ltd · Nagpur, Maharashtra, India</p>
-          <p className="micro text-white/30">Prices are indicative · {PRIMARY_CITY}</p>
+        <div className="shell-bleed flex flex-wrap items-center justify-between gap-3 py-6 text-xs">
+          <p>{fill(dict.footer.rights, { year })}</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy-policy" className="transition-colors hover:text-ground-ink">
+              {dict.footer.privacyPolicy}
+            </Link>
+            <span className="micro text-white/30">{dict.footer.indicative}</span>
+          </div>
         </div>
       </div>
     </footer>

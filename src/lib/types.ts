@@ -1,7 +1,11 @@
 /**
- * Types mirroring the Spring Boot API. Field names are taken from the Flutter
- * client's model classes (testf/lib/services/models/*), which are the de-facto
- * contract — the backend has no OpenAPI output in prod (springdoc is disabled).
+ * Types mirroring the Spring Boot API.
+ *
+ * The site reads the anonymous /public/v1 surface, whose shapes are defined by
+ * the DTOs in com.wheely.dto.publicapi — those are the contract for everything
+ * below. Vehicle and Brand keep the field names the Flutter client established
+ * (testf/lib/services/models/*), since the public DTOs mirror the entities key
+ * for key. The backend has no OpenAPI output in prod (springdoc is disabled).
  *
  * Nearly everything is optional on purpose. The catalog is admin-entered and
  * sparsely filled: most spec fields are null for most vehicles, so the UI has
@@ -79,6 +83,11 @@ export interface Vehicle {
   mileageClaimed?: string
   mileageUser?: string
   fuelType?: string
+  /** "4-stroke" / "2-stroke". */
+  stroke?: string
+  reserveFuelCapacity?: string
+  /** Bajaj's idle start-stop system. Boolean on the wire, null on most rows. */
+  i3sTechnology?: boolean
 
   // EV-only — null on petrol vehicles
   batteryCapacity?: string
@@ -113,6 +122,11 @@ export interface Vehicle {
   bootLight?: boolean
   chargingPort?: boolean
   freeServiceCount?: number
+  /* Service schedule. Free text: "500 km", "30 days". */
+  firstServiceKM?: string
+  firstServiceDays?: string
+  secondServiceKM?: string
+  secondServiceDays?: string
 
   description?: string
 }
@@ -120,18 +134,38 @@ export interface Vehicle {
 export interface Offer {
   id?: number
   title?: string
+  /** Headline benefit shown big on the card, e.g. "Up to Rs 7,000 off". */
+  benefitText?: string
   description?: string
+  termsAndConditions?: string
   imageURL?: string
-  status?: number
+  /** DISCOUNT, EXCHANGE_BONUS, ... */
+  offerType?: string
+  /** Set when the offer is scoped to one brand; absent for app-wide offers. */
+  brandId?: number
+  /** Set when the offer is scoped to one model. */
+  vehicleId?: number
+  startsAt?: string
+  endsAt?: string
 }
 
+/**
+ * One syndicated news item.
+ *
+ * The feed carries no image and no stable id, so there is deliberately no
+ * `imageURL` or `id` here — the cards key off `url` and render text only.
+ */
 export interface NewsArticle {
-  id?: number
   title?: string
   description?: string
-  imageURL?: string
+  /** External article URL; the cards link out to it with rel=nofollow. */
   url?: string
+  /** Publisher name, e.g. "Autocar India". */
+  source?: string
+  /** Upstream RFC-822 date string, unparsed. */
   publishedAt?: string
+  /** bikes | scooters | cars */
+  category?: string
 }
 
 export interface City {
@@ -143,4 +177,33 @@ export interface City {
 /** A vehicle plus the URL slug it is reachable at. */
 export interface VehicleWithHref extends Vehicle {
   href: string
+}
+
+/**
+ * One owner review, as published by /public/v1/vehicles/{id}/reviews.
+ *
+ * Mirrors PublicReviewDto. The reviewer's internal id and the moderation
+ * status are deliberately absent from that DTO — only visible reviews are ever
+ * served — so there is nothing here to filter on the client.
+ */
+export interface Review {
+  id?: number
+  /** 1-5. */
+  rating?: number
+  comment?: string
+  /** Display name. Blank on older rows. */
+  reviewer?: string
+  /** ISO timestamp. */
+  created?: string
+}
+
+/** Aggregate rating for one vehicle. Mirrors PublicReviewSummaryDto. */
+export interface ReviewSummary {
+  averageRating?: number
+  totalReviews?: number
+  fiveStar?: number
+  fourStar?: number
+  threeStar?: number
+  twoStar?: number
+  oneStar?: number
 }

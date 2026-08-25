@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { NAV_LINKS } from '@/lib/site'
+import type { Dictionary } from '@/lib/i18n/dictionaries'
 
 /**
  * The nav markup, with no hooks in it.
@@ -11,13 +12,20 @@ import { NAV_LINKS } from '@/lib/site'
  * lets it serve two jobs — the prerendered fallback (pathname = null, no
  * marker, but every link present for crawlers) and the streamed-in version
  * that knows where you are. See site-nav-active.tsx.
+ *
+ * The dictionary arrives the same way and for the same reason: the reader's
+ * language lives in a cookie, and reading a cookie outside a Suspense boundary
+ * would take the static shell with it. The fallback renders English into the
+ * shell; the reader's language streams over it.
  */
 export function NavLinks({
   variant,
   pathname,
+  dict,
 }: {
   variant: 'bar' | 'strip'
   pathname: string | null
+  dict: Dictionary
 }) {
   // Prefix match, so a vehicle page opened from /bikes keeps Bikes lit — the
   // marker answers "where am I in the catalog", which a strict equality check
@@ -28,8 +36,8 @@ export function NavLinks({
   if (variant === 'strip') {
     return (
       <nav
-        aria-label="Primary mobile"
-        className="flex gap-1 overflow-x-auto border-t border-white/8 px-4 py-2 md:hidden"
+        aria-label={dict.nav.primaryMobile}
+        className="shell-bleed flex gap-1 overflow-x-auto border-t border-white/8 py-2 md:hidden"
       >
         {NAV_LINKS.map((link) => (
           <Link
@@ -42,7 +50,7 @@ export function NavLinks({
                 : 'text-ground-muted hover:text-ground-ink'
             }`}
           >
-            {link.label}
+            {dict.nav[link.key]}
           </Link>
         ))}
       </nav>
@@ -50,7 +58,7 @@ export function NavLinks({
   }
 
   return (
-    <nav aria-label="Primary" className="hidden items-center gap-0.5 md:flex">
+    <nav aria-label={dict.nav.primary} className="hidden items-center gap-0.5 md:flex">
       {NAV_LINKS.map((link) => (
         <Link
           key={link.href}
@@ -62,7 +70,7 @@ export function NavLinks({
               : 'text-ground-muted hover:text-ground-ink'
           }`}
         >
-          {link.label}
+          {dict.nav[link.key]}
           {/* The signal colour marks position — the one place it appears in
               the chrome. */}
           {isActive(link.href) && (

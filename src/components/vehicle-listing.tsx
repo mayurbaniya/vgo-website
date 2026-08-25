@@ -1,148 +1,96 @@
 import Link from 'next/link'
-import type { Paged, Vehicle } from '@/lib/types'
-import { GridSkeleton, VehicleGrid } from './vehicle-grid'
-
-export const PAGE_SIZE = 24
-
-/** Parses ?page=N (1-based in the URL) into a 0-based API page index. */
-export function parsePage(raw: string | string[] | undefined): number {
-  const value = Array.isArray(raw) ? raw[0] : raw
-  const n = Number.parseInt(value ?? '1', 10)
-  return Number.isSafeInteger(n) && n > 0 ? n - 1 : 0
-}
-
-export function VehicleListing({
-  page,
-  basePath,
-  emptyMessage,
-}: {
-  page: Paged<Vehicle> | null
-  basePath: string
-  emptyMessage?: string
-}) {
-  const vehicles = page?.content ?? []
-  const current = page?.pageNumber ?? 0
-  const total = page?.totalPages ?? 0
-  const count = page?.totalElements ?? 0
-
-  return (
-    <>
-      {/* Sits with the results rather than in the masthead: the masthead is
-          part of the static shell and cannot know the count without giving up
-          its prerender. */}
-      {count > 0 && (
-        <p className="micro tnum mb-6 text-ink-subtle">
-          {count} {count === 1 ? 'model' : 'models'}
-          {total > 1 ? ` · page ${current + 1} of ${total}` : ''}
-        </p>
-      )}
-      <VehicleGrid vehicles={vehicles} emptyMessage={emptyMessage} />
-      <Pagination basePath={basePath} current={current} total={total} />
-    </>
-  )
-}
-
-function Pagination({
-  basePath,
-  current,
-  total,
-}: {
-  basePath: string
-  current: number
-  total: number
-}) {
-  if (total <= 1) return null
-
-  const prev = current > 0 ? current : null
-  const next = current + 1 < total ? current + 2 : null
-
-  const step =
-    'rounded-control border border-hairline px-4 py-2 text-sm font-medium transition-colors'
-
-  return (
-    <nav
-      aria-label="Pagination"
-      className="mt-12 flex items-center justify-center gap-3"
-    >
-      {/*
-        Real <a> links with ?page=N rather than a client-side "load more".
-        Crawlers follow hrefs; they do not click buttons, and every vehicle
-        needs to sit behind a crawlable URL to get indexed.
-      */}
-      {prev !== null ? (
-        <Link
-          href={prev === 1 ? basePath : `${basePath}?page=${prev}`}
-          rel="prev"
-          className={`${step} text-ink-muted hover:border-ink/25 hover:text-ink`}
-        >
-          ← Previous
-        </Link>
-      ) : (
-        <span className={`${step} text-ink-subtle opacity-40`}>← Previous</span>
-      )}
-
-      <span className="micro tnum text-ink-subtle">
-        Page {current + 1} / {total}
-      </span>
-
-      {next !== null ? (
-        <Link
-          href={`${basePath}?page=${next}`}
-          rel="next"
-          className={`${step} text-ink-muted hover:border-ink/25 hover:text-ink`}
-        >
-          Next →
-        </Link>
-      ) : (
-        <span className={`${step} text-ink-subtle opacity-40`}>Next →</span>
-      )}
-    </nav>
-  )
-}
+import { GridSkeleton } from './vehicle-grid'
 
 /**
  * Listing masthead.
  *
  * Dark, so every listing opens against the same frame the header and hero
- * establish, and the white catalog below reads as the content rather than as
- * more chrome. `count` is shown when the caller knows it — "75 models" tells
- * someone whether it is worth scrolling.
+ * establish and the white catalog below reads as content rather than as more
+ * chrome. Filtering, sorting and the results themselves all live in
+ * <CatalogBrowser>; this is only the page's statement of what it is.
  */
 export function PageHeader({
   eyebrow,
   title,
   description,
   count,
+  breadcrumbs,
   children,
 }: {
   eyebrow?: string
   title: string
   description: string
   count?: number
+  breadcrumbs?: { href: string; label: string }[]
   children?: React.ReactNode
 }) {
   return (
     <header className="bg-ground">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:py-14">
+      <div className="shell py-10 sm:py-12">
+        {breadcrumbs && breadcrumbs.length > 0 && (
+          <nav aria-label="Breadcrumb" className="mb-5">
+            <ol className="flex flex-wrap items-center gap-1.5 text-xs text-ground-muted">
+              {breadcrumbs.map((crumb) => (
+                <li key={crumb.href} className="flex items-center gap-1.5">
+                  <Link href={crumb.href} className="transition-colors hover:text-ground-ink">
+                    {crumb.label}
+                  </Link>
+                  <span aria-hidden className="text-white/25">
+                    /
+                  </span>
+                </li>
+              ))}
+              <li className="text-ground-ink">{title}</li>
+            </ol>
+          </nav>
+        )}
+
         {eyebrow && <p className="micro mb-3 text-signal">{eyebrow}</p>}
+
         <h1 className="display text-[2rem] text-ground-ink sm:text-[2.75rem]">
           {title}
         </h1>
+
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ground-muted sm:text-base">
           {description}
         </p>
+
         {count !== undefined && count > 0 && (
           <p className="micro tnum mt-5 text-white/40">
             {count} {count === 1 ? 'model' : 'models'} listed
           </p>
         )}
+
         {children}
       </div>
     </header>
   )
 }
 
-/** Kept as a named export so listing routes can drop in a matching fallback. */
+/**
+ * Fallback for a listing route's Suspense boundary. Mirrors the browser's own
+ * two-column shape so the rail does not appear from nowhere once data lands.
+ */
 export function ListingSkeleton() {
-  return <GridSkeleton />
+  return (
+    <div className="lg:grid lg:grid-cols-[16rem_1fr] lg:gap-10">
+      <div className="hidden space-y-6 lg:block">
+        {Array.from({ length: 4 }, (_, group) => (
+          <div key={group} className="space-y-2">
+            <div className="shimmer h-3 w-24 rounded" />
+            {Array.from({ length: 4 }, (_, row) => (
+              <div key={row} className="shimmer h-7 rounded" />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="min-w-0">
+        <div className="mb-5 flex items-center justify-between border-b border-hairline pb-4">
+          <div className="shimmer h-4 w-24 rounded" />
+          <div className="shimmer h-9 w-40 rounded" />
+        </div>
+        <GridSkeleton />
+      </div>
+    </div>
+  )
 }

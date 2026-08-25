@@ -1,5 +1,6 @@
 import type { Vehicle } from '@/lib/types'
 import { isElectric } from '@/lib/format'
+import { bodyTypeLabel } from '@/lib/site'
 
 type Row = { label: string; value: unknown }
 
@@ -14,27 +15,48 @@ function usable(rows: Row[]): { label: string; value: string }[] {
   })
 }
 
+/**
+ * One spec group.
+ *
+ * `<details open>` rather than a plain heading: the full sheet runs to sixty
+ * rows across eight groups, and a reader who came for the engine should not
+ * have to scroll past the tyres to leave. Open by default so the page still
+ * reads as a complete spec sheet — and so the values are in the document for a
+ * crawler either way.
+ */
 function Group({ title, rows }: { title: string; rows: Row[] }) {
   const cleaned = usable(rows)
   if (cleaned.length === 0) return null
 
   return (
-    <section className="rounded-xl border border-hairline">
-      <h3 className="border-b border-hairline bg-surface-alt px-5 py-3 font-semibold text-ink">
-        {title}
-      </h3>
+    <details open className="card group overflow-hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-hairline bg-surface-alt px-5 py-3">
+        <span className="display-sm text-sm text-ink">{title}</span>
+        <span className="flex items-center gap-2">
+          <span className="micro tnum text-ink-subtle">{cleaned.length}</span>
+          <span
+            aria-hidden
+            className="text-ink-subtle transition-transform duration-200 group-open:rotate-180"
+          >
+            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m2.5 4.5 3.5 3.5 3.5-3.5" />
+            </svg>
+          </span>
+        </span>
+      </summary>
+
       <dl className="divide-y divide-hairline">
         {cleaned.map((row) => (
           <div
             key={row.label}
-            className="grid grid-cols-2 gap-4 px-5 py-3 text-sm"
+            className="grid grid-cols-[1fr_1.2fr] gap-4 px-5 py-2.5 text-sm odd:bg-surface even:bg-surface-alt/40"
           >
             <dt className="text-ink-subtle">{row.label}</dt>
-            <dd className="font-medium text-ink">{row.value}</dd>
+            <dd className="font-semibold text-ink">{row.value}</dd>
           </div>
         ))}
       </dl>
-    </section>
+    </details>
   )
 }
 
@@ -49,7 +71,7 @@ export function SpecTable({ vehicle: v }: { vehicle: Vehicle }) {
   const ev = isElectric(v)
 
   return (
-    <div className="grid gap-5 md:grid-cols-2">
+    <div className="grid items-start gap-5 md:grid-cols-2">
       {ev ? (
         <Group
           title="Battery & motor"
@@ -73,14 +95,17 @@ export function SpecTable({ vehicle: v }: { vehicle: Vehicle }) {
           rows={[
             { label: 'Displacement', value: v.powerCC ? `${v.powerCC} cc` : null },
             { label: 'Engine type', value: v.engineType },
+            { label: 'Stroke', value: v.stroke },
             { label: 'Max torque', value: v.maxTorque },
             { label: 'Cylinders', value: v.cylinderCount },
             { label: 'Gears', value: v.gearCount },
             { label: 'Start type', value: v.startType },
             { label: 'Fuel type', value: v.fuelType },
             { label: 'Fuel capacity', value: v.fuelCapacity },
+            { label: 'Reserve fuel', value: v.reserveFuelCapacity },
             { label: 'Claimed mileage', value: v.mileageClaimed },
             { label: 'User-reported mileage', value: v.mileageUser },
+            { label: 'Idle start-stop (i3S)', value: v.i3sTechnology },
           ]}
         />
       )}
@@ -90,11 +115,12 @@ export function SpecTable({ vehicle: v }: { vehicle: Vehicle }) {
         rows={[
           { label: 'Top speed', value: v.topSpeed },
           { label: 'Acceleration', value: v.accelerationTime },
+          { label: 'Riding modes', value: ev ? null : v.ridingModes },
         ]}
       />
 
       <Group
-        title="Brakes, wheels & suspension"
+        title="Brakes, wheels & tyres"
         rows={[
           { label: 'Braking type', value: v.brakingType },
           { label: 'Front brake', value: v.frontBrake },
@@ -121,10 +147,19 @@ export function SpecTable({ vehicle: v }: { vehicle: Vehicle }) {
         title="Features"
         rows={[
           { label: 'Key type', value: v.keyType },
-          { label: 'Bluetooth', value: v.bluetooth },
+          { label: 'Bluetooth console', value: v.bluetooth },
           { label: 'Boot light', value: v.bootLight },
           { label: 'Charging port', value: v.chargingPort },
+        ]}
+      />
+
+      <Group
+        title="Service & warranty"
+        rows={[
           { label: 'Free services', value: v.freeServiceCount },
+          { label: 'First service', value: joinService(v.firstServiceKM, v.firstServiceDays) },
+          { label: 'Second service', value: joinService(v.secondServiceKM, v.secondServiceDays) },
+          { label: 'Battery warranty', value: ev ? v.batteryWarranty : null },
         ]}
       />
 
@@ -135,9 +170,16 @@ export function SpecTable({ vehicle: v }: { vehicle: Vehicle }) {
           { label: 'Launch date', value: v.launchDate },
           { label: 'Variant', value: v.variant },
           { label: 'Colour', value: v.color },
-          { label: 'Body type', value: v.vehicleType },
+          { label: 'Body type', value: bodyTypeLabel(v.vehicleType) ?? v.vehicleType },
         ]}
       />
     </div>
   )
+}
+
+/** "500 km or 30 days" — the schedule is whichever comes first, so say both. */
+function joinService(km?: string, days?: string): string | null {
+  const parts = [km, days].map((part) => part?.trim()).filter(Boolean)
+  if (parts.length === 0) return null
+  return parts.join(' or ')
 }

@@ -101,14 +101,18 @@ export function displayPrice(v: Vehicle): string | null {
 }
 
 /**
- * Lowest number in the price fields, as a plain integer string for schema.org.
+ * The numeric bounds behind a vehicle's price fields, low first.
  *
  * Stripping non-digits from a whole range would concatenate the bounds —
- * "240000 - 245000" becomes "240000245000" — and publish a nonsense price into
- * structured data, which is exactly the sort of thing that gets rich results
- * penalised. Take the minimum bound instead.
+ * "240000 - 245000" becomes "240000245000" — so the range is split on its dash
+ * first and each side parsed on its own. Live data also carries Indian digit
+ * grouping ("3,11,000 - 3,20,000"), which the non-digit sweep handles.
+ *
+ * This is the one place prices are parsed. schemaPrice, compactPrice and the
+ * catalog index all read through it, so a badly shaped admin entry fails the
+ * same way everywhere instead of three different ways.
  */
-export function schemaPrice(v: Vehicle): string | null {
+export function priceBounds(v: Vehicle): [number, number] | null {
   const source = v.priceRange?.trim() || v.price?.trim()
   if (!source) return null
 
@@ -118,7 +122,17 @@ export function schemaPrice(v: Vehicle): string | null {
     .filter((n) => Number.isFinite(n) && n > 0)
 
   if (numbers.length === 0) return null
-  return String(Math.min(...numbers))
+  return [Math.min(...numbers), Math.max(...numbers)]
+}
+
+/**
+ * Lowest number in the price fields, as a plain integer string for schema.org.
+ * Publishing a concatenated range into structured data is exactly the sort of
+ * thing that gets rich results penalised, so this takes the minimum bound.
+ */
+export function schemaPrice(v: Vehicle): string | null {
+  const bounds = priceBounds(v)
+  return bounds ? String(bounds[0]) : null
 }
 
 export function isElectric(v: Vehicle): boolean {
@@ -215,19 +229,16 @@ export function brandMonogram(name?: string | null): string {
  * field isn't numeric.
  */
 export function compactPrice(v: Vehicle): string | null {
-  const source = v.priceRange?.trim() || v.price?.trim()
-  if (!source) return null
+  const bounds = priceBounds(v)
+  if (!bounds) return displayPrice(v)
+  return compactInr(bounds[0])
+}
 
-  const numbers = source
-    .split(/\s*[-–—]\s*/)
-    .map((part) => Number.parseInt(part.replace(/[^\d]/g, ''), 10))
-    .filter((n) => Number.isFinite(n) && n > 0)
-
-  if (numbers.length === 0) return displayPrice(v)
-  const low = Math.min(...numbers)
-  if (low >= 10_000_000) return `₹${(low / 10_000_000).toFixed(2)} Cr`
-  if (low >= 100_000) return `₹${(low / 100_000).toFixed(2)} L`
-  return formatInr(low)
+/** ₹3.20 L / ₹1.69 Cr from a plain number. */
+export function compactInr(value: number): string {
+  if (value >= 10_000_000) return `₹${(value / 10_000_000).toFixed(2)} Cr`
+  if (value >= 100_000) return `₹${(value / 100_000).toFixed(2)} L`
+  return formatInr(value)
 }
 
 export interface SpecCell {

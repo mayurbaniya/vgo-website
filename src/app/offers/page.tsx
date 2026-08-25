@@ -1,13 +1,16 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import { Suspense } from 'react'
 import { getActiveOffers } from '@/lib/api'
+import { getCatalogSnapshot } from '@/lib/catalog'
+import { OfferCard } from '@/components/offer-card'
+import { EmptyState } from '@/components/vehicle-grid'
 import { PageHeader } from '@/components/vehicle-listing'
-import { PRIMARY_CITY } from '@/lib/site'
+import { MARKET } from '@/lib/site'
+import type { Brand } from '@/lib/types'
 
 export const metadata: Metadata = {
-  title: `Bike & Scooter Offers in ${PRIMARY_CITY}`,
-  description: `Current dealer offers, discounts and exchange bonuses on two-wheelers in ${PRIMARY_CITY}.`,
+  title: `Bike & Scooter Offers in ${MARKET}`,
+  description: `Current dealer offers, discounts and exchange bonuses on two-wheelers in ${MARKET}, with the terms attached to each one.`,
   alternates: { canonical: '/offers' },
 }
 
@@ -15,10 +18,11 @@ export default function OffersPage() {
   return (
     <>
       <PageHeader
-        title="Offers"
-        description={`Live dealer offers and discounts across ${PRIMARY_CITY}.`}
+        eyebrow="Running now"
+        title="Offers and discounts"
+        description={`Live dealer benefits across ${MARKET}. Terms are attached to every offer — read them before you count on the number.`}
       />
-      <div className="mx-auto max-w-6xl px-4 py-10">
+      <div className="shell py-8">
         <Suspense fallback={<OffersSkeleton />}>
           <Offers />
         </Suspense>
@@ -27,55 +31,81 @@ export default function OffersPage() {
   )
 }
 
+/**
+ * Offers, grouped by what they apply to.
+ *
+ * The API scopes an offer three ways — one model, one brand, or everything —
+ * and the difference matters more than any of the copy on the card: "₹3,000
+ * off" means something quite different if it only applies to one scooter.
+ * Grouping states the scope once per section instead of leaving it implied.
+ */
 async function Offers() {
-  const offers = await getActiveOffers()
+  const [offers, snapshot] = await Promise.all([
+    getActiveOffers(),
+    getCatalogSnapshot(),
+  ])
 
   if (offers.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-hairline p-10 text-center text-sm text-ink-subtle">
-        No offers are running right now. Check back soon.
-      </p>
+      <EmptyState message="No offers are running right now. Dealer benefits change month to month — check back at the start of the next one." />
     )
   }
 
+  const brandName = (id?: number) =>
+    snapshot.brands.find((brand: Brand) => brand.id === id)?.name
+
+  const groups = [
+    {
+      title: 'Across the catalog',
+      description: 'Offers that are not tied to one brand or model.',
+      rows: offers.filter((offer) => !offer.brandId && !offer.vehicleId),
+    },
+    {
+      title: 'Brand offers',
+      description: 'Running across a manufacturer’s range.',
+      rows: offers.filter((offer) => offer.brandId && !offer.vehicleId),
+    },
+    {
+      title: 'Model offers',
+      description: 'Tied to a single model.',
+      rows: offers.filter((offer) => offer.vehicleId),
+    },
+  ].filter((group) => group.rows.length > 0)
+
   return (
-    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {offers.map((offer) => (
-        <li
-          key={offer.id}
-          className="overflow-hidden rounded-xl border border-hairline bg-surface"
-        >
-          {offer.imageURL && (
-            <div className="relative aspect-video bg-surface-alt">
-              <Image
-                src={offer.imageURL}
-                alt={offer.title ?? 'Offer'}
-                fill
-                sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 90vw"
-                className="object-cover"
-              />
-            </div>
-          )}
-          <div className="p-4">
-            <h2 className="font-semibold text-ink">{offer.title}</h2>
-            {offer.description && (
-              <p className="mt-1 text-sm text-ink-muted">{offer.description}</p>
-            )}
+    <div className="space-y-12">
+      {groups.map((group) => (
+        <section key={group.title}>
+          <div className="mb-5">
+            <h2 className="display text-xl text-ink sm:text-2xl">{group.title}</h2>
+            <p className="mt-1.5 text-sm text-ink-muted">{group.description}</p>
           </div>
-        </li>
+
+          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {group.rows.map((offer) => {
+              const scope =
+                brandName(offer.brandId) ??
+                snapshot.vehicles.find((entry) => entry.id === offer.vehicleId)?.title
+
+              return (
+                <li key={offer.id}>
+                  {scope && <p className="micro mb-2 text-ink-subtle">{scope}</p>}
+                  <OfferCard offer={offer} expanded />
+                </li>
+              )
+            })}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   )
 }
 
 function OffersSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 3 }, (_, i) => (
-        <div
-          key={i}
-          className="h-64 animate-pulse rounded-xl border border-hairline bg-surface-alt"
-        />
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="shimmer h-72 rounded-card" />
       ))}
     </div>
   )

@@ -14,8 +14,10 @@
      reads out: a tracked-out micro label above a tabular figure, cells split by
      hairlines. It appears on cards, in the hero and on the vehicle page, so the
      same device does the same job everywhere (.cluster below).
-  2. The registration plate — Nagpur is MH-31, which every rider here reads
-     instantly. Used exactly once, as the hero's location eyebrow (.plate-chip).
+  2. The registration plate — 'IND' is embossed on every Indian high-security
+     plate, so any rider reads it instantly. Used exactly once, as the hero's
+     eyebrow (.plate-chip). It read 'MH 31 · NAGPUR' while the site defaulted
+     to one city; the device survived that change, the city did not.
 */
 
 @theme {
@@ -43,13 +45,22 @@
   --color-ground-ink: #f2f3f7;
   --color-ground-muted: #9aa1b4;
 
-  /* Light catalog surface. */
+  /*
+    Light catalog surface.
+
+    The three neutrals below are the Flutter app's light-theme values verbatim
+    (AppPalette in testf/lib/utils/design_tokens.dart): surface = its `surface`,
+    surface-alt = its `canvas`, hairline = its `hairline`. They were within a
+    hex digit of each other by coincidence; making them identical means a
+    screenshot of one product dropped beside the other does not show a seam,
+    which is the whole reason both carry the same indigo.
+  */
   --color-ink: #14161f;
   --color-ink-muted: #565d6e;
   --color-ink-subtle: #7b8294;
   --color-surface: #ffffff;
-  --color-surface-alt: #f5f6f9;
-  --color-hairline: #e4e6ec;
+  --color-surface-alt: #f6f7f9;
+  --color-hairline: #e8ebf0;
 
   /*
     Two semantic accents, each with exactly one job, so colour always means
@@ -60,6 +71,26 @@
   --color-signal: #ff6a2b;
   --color-signal-soft: #fff1e9;
   --color-ev: #0e9f6e;
+
+  /*
+    A third accent, added when sign-in arrived. It earns its place by carrying
+    a meaning neither of the two above can: "this did not work". Reusing signal
+    for it would have made the active-nav marker and a failed sign-in the same
+    colour, which is exactly the ambiguity the rule above exists to prevent.
+    Reserved for failure — never for emphasis, badges or prices.
+  */
+  --color-danger: #d92d20;
+
+  /*
+    How wide page content is allowed to get, in one place.
+
+    The old value was 72rem (1152px), which left roughly 380px of dead margin
+    on either side of a 1080p screen — the catalog looked like it was being
+    viewed through a letterbox. 96rem fills a 1920px window with a normal
+    gutter and still stops a card grid from stretching into absurdity on an
+    ultrawide. Tune this one line to change the whole site.
+  */
+  --shell-max: 96rem;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif, sans-serif;
@@ -91,6 +122,44 @@ body {
 }
 
 /* Display type is set tight and dark — the size does the work, not the weight. */
+/*
+  Page gutter.
+
+  `.shell` centres content and caps it at --shell-max: text still needs a
+  measure, and a paragraph run edge to edge across 1920px is unreadable however
+  much screen it uses.
+
+  `.shell-bleed` is the same gutter with no cap, for chrome. The header uses it
+  so the wordmark sits at the left edge of the window and the sign-in, language
+  and app controls sit at the right edge — which is where you look for them.
+  Chrome frames the window; content sits inside a measure. The header therefore
+  runs wider than the content below it, which is deliberate.
+*/
+.shell,
+.shell-bleed {
+  width: 100%;
+  padding-inline: 1rem;
+}
+
+.shell {
+  margin-inline: auto;
+  max-width: var(--shell-max);
+}
+
+@media (min-width: 640px) {
+  .shell,
+  .shell-bleed {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .shell,
+  .shell-bleed {
+    padding-inline: 2rem;
+  }
+}
+
 .display {
   font-family: var(--font-display);
   font-weight: 700;
@@ -195,5 +264,367 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ==========================================================================
+   Portal layer.
+
+   Everything above this line is the original identity — the cluster readout,
+   the plate chip, the two grounds. Everything below is what a catalog needs to
+   stop being a grid of cards and start being a place you shop in: elevation
+   that means something, filter controls, rails, sheets and sticky tooling.
+
+   These are component classes rather than repeated utility strings because
+   each one is used in six or more places, and a hover treatment that drifts
+   between the card grid, the brand tiles and the compare picker is exactly how
+   an interface starts to look assembled rather than designed.
+   ========================================================================== */
+
+@theme {
+  /*
+    Elevation.
+
+    Three steps, all keyed to the ink colour rather than to black, and all
+    heavily negative-spread so the shadow reads as the card lifting off the
+    page rather than as a grey halo drawn around it.
+  */
+  --shadow-rise: 0 1px 2px -1px rgb(20 22 31 / 0.08), 0 2px 6px -3px rgb(20 22 31 / 0.1);
+  --shadow-lift: 0 12px 28px -20px rgb(20 22 31 / 0.45), 0 2px 6px -4px rgb(20 22 31 / 0.2);
+  --shadow-pop: 0 24px 48px -28px rgb(20 22 31 / 0.55), 0 4px 10px -6px rgb(20 22 31 / 0.18);
+
+  /* One notch below surface-alt — the app's `subtle`, its chip and icon fill. */
+  --color-surface-sunk: #f1f3f7;
+}
+
+/* --------------------------------------------------------------------------
+   Cards
+   -------------------------------------------------------------------------- */
+
+/*
+  The catalog card shell. `.card-interactive` adds the lift, so a static panel
+  and a clickable one share a border and a radius without also sharing a hover
+  state the static one can never satisfy.
+*/
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-card);
+}
+
+.card-interactive {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgb(20 22 31 / 0.18);
+  box-shadow: var(--shadow-lift);
+}
+
+/* --------------------------------------------------------------------------
+   Controls
+   -------------------------------------------------------------------------- */
+
+/*
+  Filter chip. Every option in the rail, the sheet and the applied row is one of
+  these, and every one of them is an <a> — the active state has to be legible
+  without relying on a checkbox glyph the link does not have, which is why the
+  selected chip inverts to ink rather than merely tinting.
+*/
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-chip);
+  padding: 0.375rem 0.6875rem;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  color: var(--color-ink-muted);
+  background: var(--color-surface);
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background-color 150ms ease;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: rgb(20 22 31 / 0.28);
+  color: var(--color-ink);
+}
+
+.chip-active {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-surface);
+}
+
+.chip-active:hover {
+  background: #000;
+  border-color: #000;
+  color: var(--color-surface);
+}
+
+/*
+  Segmented control — the tab bar on the home rails and the grid/list toggle.
+  A track with an inset well, so the selected segment reads as raised out of it
+  rather than as a button that happens to be darker.
+*/
+.seg {
+  display: inline-flex;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-sunk);
+  border: 1px solid var(--color-hairline);
+}
+
+.seg-item {
+  border-radius: calc(var(--radius-control) - 3px);
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.seg-item:hover {
+  color: var(--color-ink);
+}
+
+.seg-item[data-active='true'] {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-rise);
+}
+
+/* The same control on dark ground, for the hero's search-mode tabs. */
+.seg-dark {
+  background: rgb(255 255 255 / 0.06);
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.seg-dark .seg-item {
+  color: var(--color-ground-muted);
+}
+
+.seg-dark .seg-item:hover {
+  color: var(--color-ground-ink);
+}
+
+.seg-dark .seg-item[data-active='true'] {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--color-ground-ink);
+  box-shadow: none;
+}
+
+/*
+  Ghost button — the secondary action on every card and panel. Deliberately
+  quiet: a card carrying a filled button competes with the price, which is the
+  thing the card exists to show.
+*/
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-control);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.btn-ghost:hover {
+  border-color: rgb(20 22 31 / 0.28);
+  background: var(--color-surface-alt);
+  color: var(--color-ink);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-control);
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-brand-600);
+  transition: background-color 150ms ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-brand-500);
+}
+
+/* --------------------------------------------------------------------------
+   Rails
+   -------------------------------------------------------------------------- */
+
+/*
+  Horizontal scroller with snap. Used for the spotlight rails, the comparison
+  strip and the similar-models row. Scrollbar hidden because the cards are cut
+  off at the edge, which is the affordance — a scrollbar under a row of cards
+  reads as a rendering accident on a marketing page.
+*/
+.rail {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Room for the card lift, which would otherwise be clipped by overflow. */
+  padding-block: 0.375rem;
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.rail > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   Sticky tooling
+   -------------------------------------------------------------------------- */
+
+/*
+  Height of the site header, in one place.
+
+  The header is two tiers and both come to the same height at every breakpoint:
+  the 4rem bar plus either the 2.5rem tools strip (md and up) or the 2.5rem
+  mobile nav strip (below it). Four separate things stick underneath it — the
+  vehicle sub-nav, the filter rail, the compare table's header row, and every
+  anchored section's scroll offset — and a header that grew by a tier while
+  those kept their old hard-coded offsets is exactly how a sticky element ends
+  up hidden behind another one.
+*/
+:root {
+  --header-h: 6.5rem;
+}
+
+/* Sits immediately below the header. */
+.under-header {
+  top: var(--header-h);
+}
+
+/*
+  Sections a sticky sub-nav jumps to have to clear the header AND the sub-nav,
+  or the heading lands underneath both.
+*/
+.anchor {
+  scroll-margin-top: calc(var(--header-h) + 3.25rem);
+}
+
+/* The mobile filter / menu sheet, and the scrim behind it. */
+.sheet {
+  background: var(--color-surface);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: var(--shadow-pop);
+}
+
+.scrim {
+  background: rgb(10 12 18 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/*
+  Mega-menu panel. Sits on the light surface rather than continuing the dark
+  chrome: it is a catalog index, and the catalog is light everywhere else on
+  the site.
+*/
+.mega {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+/* --------------------------------------------------------------------------
+   Type & figures
+   -------------------------------------------------------------------------- */
+
+/* A price or spec figure: display face, tabular, tight. */
+.figure {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  letter-spacing: -0.02em;
+}
+
+.clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Loading
+   -------------------------------------------------------------------------- */
+
+/*
+  Skeletons sweep rather than pulse. A block fading in and out at the same time
+  as five of its neighbours reads as a broken image; a sweep reads as work in
+  progress, which is what it is. Falls back to the flat tone under
+  prefers-reduced-motion via the global rule at the top of this file.
+*/
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-alt);
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.65) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer::after {
+    display: none;
   }
 }
