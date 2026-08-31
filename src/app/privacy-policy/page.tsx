@@ -9,17 +9,10 @@ export const metadata: Metadata = {
 }
 
 /**
- * ⚠️ DRAFT — needs a legal review before the Play Store submission cites it.
- *
- * The content below is written to match what the app actually does (the fields
- * the signup flow collects, Firebase Analytics, FCM tokens, Google Sign-In),
- * not from a generic template. Anything that could not be verified from the
- * code is marked with a TODO rather than invented — do not publish guesses
- * about retention periods or third-party processors.
- *
- * Google Play requires this page to be publicly reachable at a stable URL, and
- * requires the account-deletion route described in the "Deleting your account"
- * section to actually work.
+ * Content is synced to what the app and backend actually do (vehicle_/lib and
+ * niku_repo), not a generic template. If the signup flow, Firebase usage, or
+ * account-deletion behavior changes, this page needs to change with it —
+ * Google Play checks that the deletion flow described below actually works.
  */
 export default function PrivacyPolicyPage() {
   return (
@@ -30,7 +23,7 @@ export default function PrivacyPolicyPage() {
       />
 
       <article className="mx-auto max-w-3xl px-4 py-10 [&_h2]:mt-10 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-ink [&_p]:mt-3 [&_p]:text-ink-muted [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1.5 [&_li]:text-ink-muted">
-        <p className="text-sm text-ink-subtle">Last updated: 15 August 2026</p>
+        <p className="text-sm text-ink-subtle">Last updated: 31 August 2026</p>
 
         <p>
           This policy explains what information {SITE_NAME} (operated by VGO Pvt
@@ -49,9 +42,15 @@ export default function PrivacyPolicyPage() {
           collect:
         </p>
         <ul>
-          <li>Your name and email address</li>
-          <li>Your phone number</li>
-          <li>Your city and age, used to show relevant pricing and listings</li>
+          <li>Your name, email address and a password, which we store only in hashed form</li>
+          <li>
+            Your phone number, which we verify with a one-time passcode (OTP)
+            sent by SMS
+          </li>
+          <li>
+            Your city and age, used to show relevant pricing and listings — you
+            must be 18 or older to create an account
+          </li>
           <li>
             Your Google account email, if you choose to sign in with Google
           </li>
@@ -64,6 +63,7 @@ export default function PrivacyPolicyPage() {
         <h2>How we use it</h2>
         <ul>
           <li>To create and secure your account</li>
+          <li>To verify your phone number using an SMS one-time passcode</li>
           <li>
             To show on-road prices and availability for your city
           </li>
@@ -74,9 +74,6 @@ export default function PrivacyPolicyPage() {
           <li>
             To send notifications you have opted into, such as price-drop alerts
             on saved vehicles
-          </li>
-          <li>
-            To understand how the app is used in aggregate, so we can improve it
           </li>
         </ul>
         <p>
@@ -93,30 +90,38 @@ export default function PrivacyPolicyPage() {
 
         <h2>Service providers</h2>
         <p>
-          We use Google Firebase for authentication, push notifications, remote
-          configuration and analytics. Their handling of data is governed by
-          Google&apos;s own privacy policy. Our servers and file storage are
-          hosted on Amazon Web Services.
+          We use Google Firebase for authentication, push notifications and
+          remote configuration, and Twilio to deliver the SMS one-time
+          passcodes used to verify your phone number. Their handling of data is
+          governed by Google&apos;s and Twilio&apos;s own privacy policies.
+          Photos and files you or we upload are stored on Amazon Web Services
+          (S3 and CloudFront).
         </p>
 
         <h2>Deleting your account</h2>
         <p>
-          You can ask us to delete your account and the personal information
-          associated with it at any time. Email{' '}
+          You can delete your account directly in the app: go to{' '}
+          <strong>Settings → Delete Account</strong>. This immediately deletes
+          your saved vehicles, signs you out of every device, and replaces your
+          name, email and phone number with anonymized values so they can no
+          longer identify you.
+        </p>
+        <p>
+          Vehicle enquiries you have made are kept for up to 60 days from when
+          you expressed interest, so a dealer can follow up, and are then
+          deleted automatically — this happens whether or not your account is
+          still active.
+        </p>
+        <p>
+          You can also request deletion by emailing{' '}
           <a
             className="font-medium text-brand-700 underline"
             href="mailto:support@vgomobility.in"
           >
             support@vgomobility.in
           </a>{' '}
-          from the address registered on your account and we will action the
-          request.
-        </p>
-        <p>
-          {/* TODO: replace once the in-app deletion flow ships — Play requires
-              an in-app route in addition to this web one. */}
-          When we delete an account, the profile, saved vehicles and enquiry
-          history associated with it are removed.
+          from the address registered on your account, and we will action it
+          the same way.
         </p>
 
         <h2>Security</h2>
@@ -125,10 +130,12 @@ export default function PrivacyPolicyPage() {
           passwords are stored only in hashed form — we cannot read them.
         </p>
 
-        <h2>Children</h2>
+        <h2>Age requirement</h2>
         <p>
-          {SITE_NAME} is not directed at children under 13, and we do not
-          knowingly collect their personal information.
+          Our mobile app requires you to be 18 or older to create an account,
+          and the signup flow enforces this. {SITE_NAME} is not directed at
+          children, and we do not knowingly collect personal information from
+          anyone under 18.
         </p>
 
         <h2>Changes to this policy</h2>
